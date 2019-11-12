@@ -26,7 +26,8 @@ resource "aws_iam_role_policy" "autoscale_handling" {
         "autoscaling:CompleteLifecycleAction",
         "ec2:DescribeInstances",
         "route53:GetHostedZone",
-        "ec2:CreateTags"
+        "ec2:CreateTags",
+        "ec2:DescribeTags"
       ],
       "Effect":"Allow",
       "Resource":"*"
@@ -70,7 +71,7 @@ resource "aws_iam_role" "lifecycle" {
 }
 
 data "aws_iam_policy_document" "lifecycle" {
-  "statement" {
+  statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
 
@@ -88,7 +89,7 @@ resource "aws_iam_role_policy" "lifecycle_policy" {
 }
 
 data "aws_iam_policy_document" "lifecycle_policy" {
-  "statement" {
+  statement {
     effect    = "Allow"
     actions   = ["sns:Publish", "autoscaling:CompleteLifecycleAction",]
     resources = ["${aws_sns_topic.autoscale_handling.arn}"]
@@ -97,8 +98,8 @@ data "aws_iam_policy_document" "lifecycle_policy" {
 
 data "archive_file" "autoscale" {
   type        = "zip"
-  source_file = ".${replace(path.module, path.root, "")}/lambda/autoscale/autoscale.py"
-  output_path = ".${replace(path.module, path.root, "")}/lambda/dist/autoscale.zip"
+  source_file = "${path.module}/lambda/autoscale/autoscale.py"
+  output_path = "${path.module}/lambda/dist/autoscale.zip"
 }
 
 resource "aws_lambda_function" "autoscale_handling" {
@@ -111,7 +112,7 @@ resource "aws_lambda_function" "autoscale_handling" {
   role             = "${aws_iam_role.autoscale_handling.arn}"
   handler          = "autoscale.lambda_handler"
   runtime          = "python2.7"
-  source_code_hash = "${base64sha256(file("${data.archive_file.autoscale.output_path}"))}"
+  source_code_hash = "${base64sha256("${data.archive_file.autoscale.output_path}")}"
   description      = "Handles DNS for autoscaling groups by receiving autoscaling notifications and setting/deleting records from route53"
 }
 
